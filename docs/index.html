@@ -85,6 +85,28 @@
     </details>
   </section>
 
+  <h2 class="section-title">Where they happen</h2>
+  <div class="filters" role="group" aria-label="Map filters">
+    <label>From <select id="f-from"></select></label>
+    <label>To <select id="f-to"></select></label>
+    <label>Min magnitude
+      <select id="f-mag">
+        <option value="4.5">4.5</option>
+        <option value="5" selected>5.0</option>
+        <option value="5.5">5.5</option>
+        <option value="6">6.0</option>
+      </select>
+    </label>
+    <button type="button" id="p-all">Whole region</button>
+    <button type="button" id="p-gorkha">Zoom to Nepal, 2015</button>
+    <span class="count" id="map-count" aria-live="polite"></span>
+  </div>
+  <section class="card card-map">
+    <div id="map" role="application" aria-label="Map of earthquakes in the Himalayan region"></div>
+    <div class="size-key" id="size-key"></div>
+    <p class="note">Hover over a circle to see its magnitude and date. The map only has M4.5 and up, to keep the page light, and it shows quakes at every depth, including the deep Hindu Kush ones the b-values leave out.</p>
+  </section>
+
   <section class="card">
     <h2>Aftershocks after the biggest quakes</h2>
     <p class="sub" id="after-sub"></p>

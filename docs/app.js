@@ -420,6 +420,92 @@ function renderAftershocks(d) {
     : `Show all ${d.aftershocks.length} quakes of M6 and above`;
 }
 
+const markerRadius = (mag) => 2 + (mag - 4.5) * 3;   // M4.5 -> 2px, M7.8 -> about 12px
+
+function setupMap(d) {
+  const region = [[24, 70], [37, 98]];     // the box the data was downloaded for
+  const nepal = [[26, 80], [31, 89]];
+
+  const map = L.map("map", { preferCanvas: true }).fitBounds(region);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 12,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
+  L.rectangle(region, { color: cssVar("--text-muted"), weight: 1, fill: false, interactive: false }).addTo(map);
+
+  const from = $("f-from");
+  const to = $("f-to");
+  const minMag = $("f-mag");
+  const years = [...new Set(d.events.map((e) => +e[3].slice(0, 4)))].sort((a, b) => a - b);
+  for (const select of [from, to]) {
+    for (const y of years) select.add(new Option(y, y));
+  }
+  const resetYears = () => {
+    from.value = years[0];
+    to.value = years[years.length - 1];
+  };
+  resetYears();
+
+  // smallest first, so the big circles are drawn on top and stay hoverable
+  const events = [...d.events].sort((a, b) => a[2] - b[2]);
+  const layer = L.layerGroup().addTo(map);
+
+  function draw() {
+    const color = cssVar("--series-1");
+    const firstYear = +from.value;
+    const lastYear = +to.value;
+    const smallest = +minMag.value;
+    layer.clearLayers();
+    let shown = 0;
+    for (const [lat, lon, mag, date] of events) {
+      const year = +date.slice(0, 4);
+      if (year < firstYear || year > lastYear || mag < smallest) continue;
+      L.circleMarker([lat, lon], {
+        radius: markerRadius(mag), color, weight: 1, fillColor: color, fillOpacity: 0.3,
+      }).bindTooltip(`M${mag.toFixed(1)} · ${date}`).addTo(layer);
+      shown++;
+    }
+    $("map-count").textContent = `${fmt.format(shown)} quakes match these filters`;
+  }
+
+  // keep "From" from passing "To"
+  from.addEventListener("change", () => { if (+to.value < +from.value) to.value = from.value; draw(); });
+  to.addEventListener("change", () => { if (+from.value > +to.value) from.value = to.value; draw(); });
+  minMag.addEventListener("change", draw);
+
+  $("p-all").addEventListener("click", () => {
+    resetYears();
+    minMag.value = "5";
+    map.fitBounds(region);
+    draw();
+  });
+  $("p-gorkha").addEventListener("click", () => {
+    from.value = 2015;
+    to.value = 2015;
+    minMag.value = "4.5";
+    map.fitBounds(nepal);
+    draw();
+  });
+
+  // size key: three sample circles drawn at the same radii as the map
+  const key = $("size-key");
+  const keyLabel = document.createElement("span");
+  keyLabel.textContent = "Circle size shows magnitude:";
+  key.appendChild(keyLabel);
+  for (const m of [5, 6, 7]) {
+    const item = document.createElement("span");
+    item.className = "item";
+    const dot = document.createElement("i");
+    dot.className = "dot";
+    dot.style.width = dot.style.height = `${markerRadius(m) * 2}px`;
+    item.append(dot, `M${m}`);
+    key.appendChild(item);
+  }
+
+  draw();
+  return { redraw: draw };
+}
+
 function fillStats(d) {
   const start = d.catalog.start.slice(0, 10);
   const end = d.catalog.end.slice(0, 10);
@@ -504,12 +590,16 @@ fetch("data/summary.json")
     fillStats(d);
     fillTables(d);
     renderCharts(d);
+    const mapApi = setupMap(d);
     $("after-toggle").addEventListener("click", () => {
       showAllAfter = !showAllAfter;
       renderAftershocks(d);
     });
     // redraw when the viewer switches between light and dark mode
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderCharts(d));
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      renderCharts(d);
+      mapApi.redraw();
+    });
   })
   .catch((err) => {
     $("load-error").hidden = false;
