@@ -46,6 +46,34 @@
     </details>
   </section>
 
+  <div class="pair">
+    <section class="card">
+      <h2>Fewer, bigger quakes</h2>
+      <p class="sub">Count of events at each reported magnitude, on a log scale.</p>
+      <div class="legend">
+        <span class="key"><i class="swatch swatch-series"></i>Used for the b-value</span>
+        <span class="key"><i class="swatch swatch-muted"></i>Below the completeness cutoff</span>
+      </div>
+      <div class="chart"><canvas id="chart-hist" role="img" aria-label="Column chart of event counts by magnitude on a log scale"></canvas></div>
+      <p class="note" id="hist-note"></p>
+      <details>
+        <summary>View as table</summary>
+        <div class="table-scroll"><table class="data-table" id="table-hist"></table></div>
+      </details>
+    </section>
+
+    <section class="card">
+      <h2>The cutoff changes b</h2>
+      <p class="sub">b-value as the completeness cutoff rises. The shaded band is &plusmn;1 standard error.</p>
+      <div class="chart"><canvas id="chart-bcurve" role="img" aria-label="Line chart of b-value against cutoff magnitude"></canvas></div>
+      <p class="note" id="bcurve-note"></p>
+      <details>
+        <summary>View as table</summary>
+        <div class="table-scroll"><table class="data-table" id="table-bcurve"></table></div>
+      </details>
+    </section>
+  </div>
+
   <footer>
     <p>Data: <a href="https://earthquake.usgs.gov/fdsnws/event/1/">USGS Earthquake Catalog (ComCat)</a>, box 24&ndash;37&deg;N, 70&ndash;98&deg;E, magnitude 4+. Page data generated <span id="generated">&ndash;</span>.</p>
     <p>This describes the catalog. It does not predict earthquakes. Magnitudes mix several scales, and the catalog's completeness changes over time.</p>

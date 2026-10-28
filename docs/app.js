@@ -140,6 +140,176 @@ function yearlyChart(d, t) {
   });
 }
 
+const LOG_TICKS = [1, 10, 100, 1000];   // the only gridlines/labels on the log axis
+
+// Vertical line between the last "below cutoff" bar and the first "used" bar.
+function cutoffLine(d, t) {
+  const first = d.histogram.findIndex((r) => r.mag >= d.mc - 1e-9);
+  return {
+    id: "cutoffLine",
+    afterDatasetsDraw(chart) {
+      if (first < 1) return;
+      const meta = chart.getDatasetMeta(0);
+      const x = (meta.data[first - 1].x + meta.data[first].x) / 2;
+      const { top, bottom } = chart.chartArea;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.strokeStyle = t.text2;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+      ctx.fillStyle = t.text2;
+      ctx.font = "12px system-ui, sans-serif";
+      ctx.textBaseline = "top";
+      ctx.fillText(`cutoff M${d.mc.toFixed(1)}`, x + 6, top + 4);
+      ctx.restore();
+    },
+  };
+}
+
+function histogramChart(d, t) {
+  const mags = d.histogram.map((r) => r.mag);
+  const counts = d.histogram.map((r) => r.n);
+  const used = (m) => m >= d.mc - 1e-9;
+  const top = Math.ceil((Math.max(...counts) * 1.3) / 500) * 500;   // headroom above the tallest bar
+
+  return new Chart($("chart-hist"), {
+    type: "bar",
+    data: {
+      labels: mags.map((m) => m.toFixed(1)),
+      datasets: [{
+        data: counts,
+        backgroundColor: mags.map((m) => (used(m) ? t.series : t.below)),
+        hoverBackgroundColor: mags.map((m) => (used(m) ? t.seriesHover : t.axis)),
+        borderRadius: 4,
+        borderSkipped: "bottom",
+        maxBarThickness: 24,
+        categoryPercentage: 0.9,
+        barPercentage: 0.85,
+      }],
+    },
+    options: merge(baseOptions(t), {
+      scales: {
+        x: {
+          title: { display: true, text: "Magnitude", color: t.text2 },
+          ticks: { autoSkip: true, maxTicksLimit: 12 },
+        },
+        y: {
+          type: "logarithmic",
+          min: 0.5,
+          max: top,
+          title: { display: true, text: "Events (log scale)", color: t.text2 },
+          grid: { color: (c) => (LOG_TICKS.includes(c.tick.value) ? t.grid : "transparent") },
+          ticks: { callback: (v) => (LOG_TICKS.includes(v) ? compact(v) : "") },
+        },
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title: (items) => `M${items[0].label}`,
+            label: (item) => `${fmt.format(item.parsed.y)} events`,
+            afterLabel: (item) => (used(mags[item.dataIndex]) ? [] : "Below cutoff: undercounted"),
+          },
+        },
+      },
+    }),
+    plugins: [cutoffLine(d, t)],
+  });
+}
+
+// Vertical hairline that follows the hovered point, so readers aim at an x, not a 2px line.
+function crosshair(t) {
+  return {
+    id: "crosshair",
+    beforeDatasetsDraw(chart) {
+      const active = chart.tooltip ? chart.tooltip.getActiveElements() : [];
+      if (!active.length) return;
+      const x = active[0].element.x;
+      const { top, bottom } = chart.chartArea;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.strokeStyle = t.axis;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+      ctx.restore();
+    },
+  };
+}
+
+// Text above one chosen point of the first dataset.
+function pointLabel(index, text, t) {
+  return {
+    id: "pointLabel",
+    afterDatasetsDraw(chart) {
+      const point = chart.getDatasetMeta(0).data[index];
+      if (!point) return;
+      const ctx = chart.ctx;
+      ctx.save();
+      ctx.fillStyle = t.text;
+      ctx.font = "600 12px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(text, point.x, point.y - 12);
+      ctx.restore();
+    },
+  };
+}
+
+function bCurveChart(d, t) {
+  const c = d.b_vs_mc;
+  const chosen = c.findIndex((r) => Math.abs(r.mc - d.mc) < 1e-9);
+  const lo = Math.floor((Math.min(...c.map((r) => r.b - r.se)) - 0.05) * 10) / 10;
+  const hi = Math.ceil((Math.max(...c.map((r) => r.b + r.se)) + 0.05) * 10) / 10;
+  const band = { borderWidth: 0, pointRadius: 0, pointHitRadius: 0 };
+
+  return new Chart($("chart-bcurve"), {
+    type: "line",
+    data: {
+      labels: c.map((r) => r.mc.toFixed(1)),
+      datasets: [
+        {   // 0: the estimate
+          data: c.map((r) => r.b),
+          borderColor: t.series,
+          backgroundColor: t.series,
+          borderWidth: 2,
+          tension: 0,
+          pointRadius: c.map((_, i) => (i === chosen ? 6 : 4)),
+          pointHoverRadius: 7,
+          pointHitRadius: 24,
+          pointBackgroundColor: t.series,
+          pointBorderColor: t.surface,
+          pointBorderWidth: 2,
+          order: 0,
+        },
+        { ...band, data: c.map((r) => r.b + r.se), fill: "+1", backgroundColor: t.seriesWash, order: 1 },   // 1: upper edge
+        { ...band, data: c.map((r) => r.b - r.se), fill: false, order: 2 },                                  // 2: lower edge
+      ],
+    },
+    options: merge(baseOptions(t), {
+      scales: {
+        x: { title: { display: true, text: "Cutoff magnitude", color: t.text2 } },
+        y: { min: lo, max: hi, title: { display: true, text: "b-value", color: t.text2 } },
+      },
+      plugins: {
+        tooltip: {
+          filter: (item) => item.datasetIndex === 0,
+          callbacks: {
+            title: (items) => `Cutoff M${items[0].label}`,
+            label: (item) => `b = ${c[item.dataIndex].b.toFixed(3)} ± ${c[item.dataIndex].se.toFixed(3)}`,
+            afterLabel: (item) => `${fmt.format(c[item.dataIndex].n)} events used`,
+          },
+        },
+      },
+    }),
+    plugins: [crosshair(t), pointLabel(chosen, `Used: M${d.mc.toFixed(1)}`, t)],
+  });
+}
+
 function fillStats(d) {
   const start = d.catalog.start.slice(0, 10);
   const end = d.catalog.end.slice(0, 10);
@@ -171,7 +341,7 @@ function renderCharts(d) {
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   Chart.defaults.font.size = 12;
   Chart.defaults.color = t.text2;
-  charts = [yearlyChart(d, t)];
+  charts = [yearlyChart(d, t), histogramChart(d, t), bCurveChart(d, t)];
 }
 
 function fillTables(d) {
@@ -179,6 +349,25 @@ function fillTables(d) {
     d.yearly.map((r) => [r.year, fmt.format(r.n), r.max_mag.toFixed(1)]), ["l", "r", "r"]);
   $("yearly-note").textContent =
     `${d.yearly[d.yearly.length - 1].year} is a partial year. Labels mark the three busiest years.`;
+
+  const usedForB = (m) => m >= d.mc - 1e-9;
+  fillTable("table-hist", ["Magnitude", "Events", "Used for b"],
+    d.histogram.map((r) => [r.mag.toFixed(1), fmt.format(r.n), usedForB(r.mag) ? "yes" : "no"]), ["l", "r", "r"]);
+
+  const all = d.b_values.find((r) => r.region === "All");
+  $("hist-note").textContent =
+    `With b = ${all.b.toFixed(2)}, each step down of one magnitude unit means about ${Math.round(10 ** all.b)} times as many quakes. ` +
+    "Below the cutoff the catalog misses small quakes, so those bars are too low.";
+
+  fillTable("table-bcurve", ["Cutoff M", "b", "± SE", "Events used"],
+    d.b_vs_mc.map((r) => [r.mc.toFixed(1), r.b.toFixed(3), r.se.toFixed(3), fmt.format(r.n)]), ["l", "r", "r", "r"]);
+
+  const first = d.b_vs_mc[0];
+  const chosen = d.b_vs_mc.find((r) => Math.abs(r.mc - d.mc) < 1e-9);
+  $("bcurve-note").textContent =
+    `At low cutoffs small quakes are missed, which flattens the distribution and pulls b down (b = ${first.b.toFixed(2)} at M${first.mc.toFixed(1)}). ` +
+    `b is roughly flat for a few steps above M${d.mc.toFixed(1)}, so that is the cutoff used (b = ${chosen.b.toFixed(2)}). ` +
+    "At higher cutoffs the estimate gets noisy because fewer events remain.";
 }
 
 fetch("data/summary.json")
