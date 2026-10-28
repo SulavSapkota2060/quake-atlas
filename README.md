@@ -41,7 +41,7 @@ Numbers below are from the catalog as downloaded on 2026-10-27.
 
 With b = 1.25, each one-point drop in magnitude means roughly 18 times as many quakes.
 
-**The regions cannot be told apart.** The largest gap is West versus Central: 0.145 apart, which is 1.6 combined standard errors. That is under the usual threshold of 2, so I don't claim the regions differ. West versus East is 1.1 standard errors and Central versus East is 0.7. These standard errors are also optimistic (see Limitations), so the real gaps are even less certain.
+**The regions show no statistically significant difference.** The largest gap is West versus Central: 0.145 apart, which is 1.6 combined standard errors. That is under the usual threshold of 2, so I don't claim the regions differ. That is not proof that they are the same, since I did not run an equivalence test. West versus East is 1.1 standard errors and Central versus East is 0.7. These standard errors are also optimistic (see Limitations), so the real gaps are even less certain.
 
 **The cutoff changes the answer a lot.** This is the most important result in the project, because it shows why the cutoff has to be chosen on purpose:
 
