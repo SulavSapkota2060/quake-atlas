@@ -64,6 +64,7 @@ h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
 
 .chart { position: relative; height: 300px; }
 .chart canvas { display: block; }
+.chart-short { height: 230px; }
 
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
 .pair .card { margin-bottom: 0; }
@@ -82,6 +83,13 @@ summary { cursor: pointer; color: var(--text-secondary); }
 .data-table th { position: sticky; top: 0; background: var(--surface); text-align: left; font-weight: 600; color: var(--text-secondary); }
 .data-table .r { text-align: right; font-variant-numeric: tabular-nums; }
 .data-table .l { text-align: left; }
+.table-tall { max-height: 420px; margin-top: 12px; }
+.after-table td.l { white-space: normal; }
+
+.link-button {
+  margin-top: 10px; padding: 0; border: 0; background: none;
+  color: var(--series-1); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline;
+}
 
 footer { margin-top: 32px; font-size: 12.5px; color: var(--text-secondary); max-width: 80ch; }
 

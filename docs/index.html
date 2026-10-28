@@ -37,7 +37,7 @@
 
   <section class="card">
     <h2>Earthquakes per year</h2>
-    <p class="sub">Magnitude 4.0 and above. The tallest years coincide with very large quakes and their aftershocks.</p>
+    <p class="sub">How many magnitude 4+ quakes happened each year. The tall bars line up with big earthquakes and the aftershocks that followed.</p>
     <div class="chart"><canvas id="chart-yearly" role="img" aria-label="Column chart of earthquakes per year, 1990 to 2026"></canvas></div>
     <p class="note" id="yearly-note"></p>
     <details>
@@ -49,10 +49,10 @@
   <div class="pair">
     <section class="card">
       <h2>Fewer, bigger quakes</h2>
-      <p class="sub">Count of events at each reported magnitude, on a log scale.</p>
+      <p class="sub">How many quakes there were at each magnitude. Each step up the side means ten times more quakes.</p>
       <div class="legend">
         <span class="key"><i class="swatch swatch-series"></i>Used for the b-value</span>
-        <span class="key"><i class="swatch swatch-muted"></i>Below the completeness cutoff</span>
+        <span class="key"><i class="swatch swatch-muted"></i>Below the cutoff (undercounted)</span>
       </div>
       <div class="chart"><canvas id="chart-hist" role="img" aria-label="Column chart of event counts by magnitude on a log scale"></canvas></div>
       <p class="note" id="hist-note"></p>
@@ -64,7 +64,7 @@
 
     <section class="card">
       <h2>The cutoff changes b</h2>
-      <p class="sub">b-value as the completeness cutoff rises. The shaded band is &plusmn;1 standard error.</p>
+      <p class="sub">What b comes out to depending on where I put the cutoff. The shaded band is the margin of error (one standard error).</p>
       <div class="chart"><canvas id="chart-bcurve" role="img" aria-label="Line chart of b-value against cutoff magnitude"></canvas></div>
       <p class="note" id="bcurve-note"></p>
       <details>
@@ -74,9 +74,28 @@
     </section>
   </div>
 
+  <section class="card">
+    <h2>b-value by region</h2>
+    <p class="sub">Does b change across the region? Each dot is a region's estimate and the line is its margin of error. The blue band is the overall estimate. Shallow quakes only, since the deep Hindu Kush ones behave differently.</p>
+    <div class="chart chart-short"><canvas id="chart-regions" role="img" aria-label="Dot plot of b-values for all events and for three regions, with error bars"></canvas></div>
+    <p class="note" id="regions-note"></p>
+    <details>
+      <summary>View as table</summary>
+      <div class="table-scroll"><table class="data-table" id="table-regions"></table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>Aftershocks after the biggest quakes</h2>
+    <p class="sub" id="after-sub"></p>
+    <div class="table-scroll table-tall"><table class="data-table after-table" id="table-after"></table></div>
+    <button type="button" id="after-toggle" class="link-button"></button>
+    <p class="note">Take these counts as a rough guide. The 110 km box can miss aftershocks along a long rupture, and I only count M4.5 and up, so small aftershocks right after a big quake are probably missing. Nearby quakes also share aftershocks, so don't add the rows up.</p>
+  </section>
+
   <footer>
-    <p>Data: <a href="https://earthquake.usgs.gov/fdsnws/event/1/">USGS Earthquake Catalog (ComCat)</a>, box 24&ndash;37&deg;N, 70&ndash;98&deg;E, magnitude 4+. Page data generated <span id="generated">&ndash;</span>.</p>
-    <p>This describes the catalog. It does not predict earthquakes. Magnitudes mix several scales, and the catalog's completeness changes over time.</p>
+    <p>Data: <a href="https://earthquake.usgs.gov/fdsnws/event/1/">USGS Earthquake Catalog (ComCat)</a>, magnitude 4+ inside 24&ndash;37&deg;N, 70&ndash;98&deg;E. Page data generated <span id="generated">&ndash;</span>.</p>
+    <p>This page describes what has already happened. It can't predict earthquakes. The catalog mixes several magnitude scales, and it probably misses more small quakes in the early years than in recent ones.</p>
   </footer>
 
 </div>

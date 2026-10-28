@@ -310,12 +310,122 @@ function bCurveChart(d, t) {
   });
 }
 
+// Draws the error lines (and the shaded band for "All") under the dots.
+function whiskers(rows, t) {
+  return {
+    id: "whiskers",
+    beforeDatasetsDraw(chart) {
+      const { ctx, chartArea: { top, bottom }, scales: { x, y } } = chart;
+      ctx.save();
+      const all = rows.find((r) => r.region === "All");
+      if (all) {
+        const left = x.getPixelForValue(all.b - all.se);
+        const right = x.getPixelForValue(all.b + all.se);
+        ctx.fillStyle = t.seriesWash;
+        ctx.fillRect(left, top, right - left, bottom - top);
+      }
+      ctx.strokeStyle = t.text2;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      rows.forEach((r, i) => {
+        const py = y.getPixelForValue(i);
+        ctx.beginPath();
+        ctx.moveTo(x.getPixelForValue(r.b - r.se), py);
+        ctx.lineTo(x.getPixelForValue(r.b + r.se), py);
+        ctx.stroke();
+      });
+      ctx.restore();
+    },
+  };
+}
+
+// Dot plot: one row per region (y = row number, labelled with the region name), x = b.
+function regionChart(d, t) {
+  const rows = d.b_values.filter((r) => r.b !== null);
+  const labels = rows.map((r) => `${r.region} (n=${fmt.format(r.n)})`);
+  const lo = Math.floor((Math.min(...rows.map((r) => r.b - r.se)) - 0.05) * 10) / 10;
+  const hi = Math.ceil((Math.max(...rows.map((r) => r.b + r.se)) + 0.05) * 10) / 10;
+
+  return new Chart($("chart-regions"), {
+    type: "scatter",
+    data: {
+      datasets: [{
+        data: rows.map((r, i) => ({ x: r.b, y: i })),
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        pointHitRadius: 24,
+        pointBackgroundColor: rows.map((r) => (r.region === "All" ? t.text2 : t.series)),
+        pointBorderColor: t.surface,
+        pointBorderWidth: 2,
+      }],
+    },
+    options: merge(baseOptions(t), {
+      interaction: { mode: "nearest", intersect: true },
+      scales: {
+        x: {
+          type: "linear",
+          min: lo,
+          max: hi,
+          grid: { display: true, color: t.grid },
+          title: { display: true, text: "b-value", color: t.text2 },
+          ticks: { stepSize: 0.1, callback: (v) => v.toFixed(1) },
+        },
+        y: {
+          type: "linear",
+          reverse: true,                                   // first row ("All") at the top
+          min: -0.5,
+          max: rows.length - 0.5,
+          grid: { display: false },
+          afterBuildTicks: (axis) => { axis.ticks = rows.map((_, i) => ({ value: i })); },
+          ticks: { callback: (v) => labels[v] },
+        },
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title: (items) => rows[items[0].dataIndex].region,
+            label: (item) => `b = ${rows[item.dataIndex].b.toFixed(3)} ± ${rows[item.dataIndex].se.toFixed(3)}`,
+            afterLabel: (item) =>
+              `${fmt.format(rows[item.dataIndex].n)} events (M ≥ ${d.mc.toFixed(1)}, depth ≤ ${d.max_depth_km} km)`,
+          },
+        },
+      },
+    }),
+    plugins: [whiskers(rows, t)],
+  });
+}
+
+// The pair of regions whose b-values differ most, in units of their combined standard error.
+function biggestGap(d) {
+  const rows = d.b_values.filter((r) => r.region !== "All" && r.b !== null);
+  let best = null;
+  for (let i = 0; i < rows.length; i++) {
+    for (let j = i + 1; j < rows.length; j++) {
+      const z = Math.abs(rows[i].b - rows[j].b) / Math.hypot(rows[i].se, rows[j].se);
+      if (!best || z > best.z) best = { a: rows[i].region, b: rows[j].region, z };
+    }
+  }
+  return best;
+}
+
+let showAllAfter = false;
+
+function renderAftershocks(d) {
+  const rows = showAllAfter ? d.aftershocks : d.aftershocks.slice(0, 12);
+  fillTable("table-after", ["Date", "M", "Place", "Aftershocks in 30 days"],
+    rows.map((r) => [r.time.slice(0, 10), r.mag.toFixed(1), r.place, fmt.format(r.aftershocks_30d)]),
+    ["l", "r", "l", "r"]);
+  $("after-toggle").textContent = showAllAfter
+    ? "Show only the biggest 12"
+    : `Show all ${d.aftershocks.length} quakes of M6 and above`;
+}
+
 function fillStats(d) {
   const start = d.catalog.start.slice(0, 10);
   const end = d.catalog.end.slice(0, 10);
   $("lede").textContent =
-    `${fmt.format(d.catalog.n)} earthquakes of magnitude 4 and above between ${start} and ${end}, ` +
-    "from the USGS catalog, stored in SQLite and analysed in Python.";
+    `Every magnitude 4+ earthquake in the Himalayan region from ${start} to ${end}: ${fmt.format(d.catalog.n)} of them, ` +
+    "pulled from the USGS catalog. I cleaned the data in Python, stored it in SQLite and drew everything on this page.";
 
   $("tile-n").textContent = fmt.format(d.catalog.n);
   $("tile-n-note").textContent = `${start} to ${end}`;
@@ -341,14 +451,14 @@ function renderCharts(d) {
   Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
   Chart.defaults.font.size = 12;
   Chart.defaults.color = t.text2;
-  charts = [yearlyChart(d, t), histogramChart(d, t), bCurveChart(d, t)];
+  charts = [yearlyChart(d, t), histogramChart(d, t), bCurveChart(d, t), regionChart(d, t)];
 }
 
 function fillTables(d) {
   fillTable("table-yearly", ["Year", "Events", "Largest M"],
     d.yearly.map((r) => [r.year, fmt.format(r.n), r.max_mag.toFixed(1)]), ["l", "r", "r"]);
   $("yearly-note").textContent =
-    `${d.yearly[d.yearly.length - 1].year} is a partial year. Labels mark the three busiest years.`;
+    `${d.yearly[d.yearly.length - 1].year} isn't over yet, so its bar is short and faded. The labels mark the three busiest years.`;
 
   const usedForB = (m) => m >= d.mc - 1e-9;
   fillTable("table-hist", ["Magnitude", "Events", "Used for b"],
@@ -356,8 +466,8 @@ function fillTables(d) {
 
   const all = d.b_values.find((r) => r.region === "All");
   $("hist-note").textContent =
-    `With b = ${all.b.toFixed(2)}, each step down of one magnitude unit means about ${Math.round(10 ** all.b)} times as many quakes. ` +
-    "Below the cutoff the catalog misses small quakes, so those bars are too low.";
+    `Small quakes are far more common than big ones. With b = ${all.b.toFixed(2)}, every one-point drop in magnitude means roughly ${Math.round(10 ** all.b)} times as many quakes. ` +
+    "The gray bars sit below the cutoff, where the catalog misses small quakes, so they're too short and I leave them out of the b-value.";
 
   fillTable("table-bcurve", ["Cutoff M", "b", "± SE", "Events used"],
     d.b_vs_mc.map((r) => [r.mc.toFixed(1), r.b.toFixed(3), r.se.toFixed(3), fmt.format(r.n)]), ["l", "r", "r", "r"]);
@@ -365,9 +475,24 @@ function fillTables(d) {
   const first = d.b_vs_mc[0];
   const chosen = d.b_vs_mc.find((r) => Math.abs(r.mc - d.mc) < 1e-9);
   $("bcurve-note").textContent =
-    `At low cutoffs small quakes are missed, which flattens the distribution and pulls b down (b = ${first.b.toFixed(2)} at M${first.mc.toFixed(1)}). ` +
-    `b is roughly flat for a few steps above M${d.mc.toFixed(1)}, so that is the cutoff used (b = ${chosen.b.toFixed(2)}). ` +
-    "At higher cutoffs the estimate gets noisy because fewer events remain.";
+    `Set the cutoff too low and b comes out too small (${first.b.toFixed(2)} at M${first.mc.toFixed(1)}), because the catalog is missing small quakes down there. ` +
+    `It flattens out for a few steps above M${d.mc.toFixed(1)}, so that's where I put it: b = ${chosen.b.toFixed(2)}. ` +
+    "Higher up there aren't enough quakes left, and the estimate gets jumpy.";
+
+  fillTable("table-regions", ["Region", "Events used", "b", "± SE"],
+    d.b_values.map((r) => [r.region, fmt.format(r.n),
+      r.b === null ? "n/a" : r.b.toFixed(3), r.se === null ? "n/a" : r.se.toFixed(3)]),
+    ["l", "r", "r", "r"]);
+  const gap = biggestGap(d);
+  $("regions-note").textContent =
+    `The biggest difference is ${gap.a} vs ${gap.b}, at ${gap.z.toFixed(1)} standard errors. ` +
+    (gap.z < 2 ? "That's within the noise, so I can't say the regions really differ. " : "That's big enough to be worth a closer look. ") +
+    "Even that is optimistic, because the margins of error treat every quake as independent and aftershocks aren't.";
+
+  $("after-sub").textContent =
+    `The ${d.aftershocks.length} biggest quakes (M6 and up), with how many M4.5+ aftershocks followed within 30 days and about 110 km. ` +
+    "Quakes from the last 30 days are left out because their window isn't finished.";
+  renderAftershocks(d);
 }
 
 fetch("data/summary.json")
@@ -379,11 +504,15 @@ fetch("data/summary.json")
     fillStats(d);
     fillTables(d);
     renderCharts(d);
+    $("after-toggle").addEventListener("click", () => {
+      showAllAfter = !showAllAfter;
+      renderAftershocks(d);
+    });
     // redraw when the viewer switches between light and dark mode
     window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderCharts(d));
   })
   .catch((err) => {
     $("load-error").hidden = false;
     $("load-error").textContent =
-      `Could not load data/summary.json (${err.message}). If you opened the file directly, run a local server instead.`;
+      `Couldn't load data/summary.json (${err.message}). If you opened the file straight from your folder, start a local server instead: python3 -m http.server --directory docs`;
   });
