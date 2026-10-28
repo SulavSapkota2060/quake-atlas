@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Himalayan Quake Atlas</title>
+  <meta name="description" content="Charts and a map of 36 years of magnitude 4+ earthquakes across the Himalayan arc, built from the USGS catalog.">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Himalayan Quake Atlas</h1>
+    <p class="lede" id="lede">Loading the catalog&hellip;</p>
+    <p class="error" id="load-error" hidden></p>
+  </header>
+
+  <section class="tiles" aria-label="Headline numbers">
+    <div class="tile">
+      <div class="tile-label">Earthquakes in catalog</div>
+      <div class="tile-value" id="tile-n">&ndash;</div>
+      <div class="tile-note" id="tile-n-note"></div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Largest magnitude</div>
+      <div class="tile-value" id="tile-max">&ndash;</div>
+      <div class="tile-note" id="tile-max-note"></div>
+    </div>
+    <div class="tile">
+      <div class="tile-label">Gutenberg-Richter b-value</div>
+      <div class="tile-value" id="tile-b">&ndash;</div>
+      <div class="tile-note" id="tile-b-note"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Earthquakes per year</h2>
+    <p class="sub">Magnitude 4.0 and above. The tallest years coincide with very large quakes and their aftershocks.</p>
+    <div class="chart"><canvas id="chart-yearly" role="img" aria-label="Column chart of earthquakes per year, 1990 to 2026"></canvas></div>
+    <p class="note" id="yearly-note"></p>
+    <details>
+      <summary>View as table</summary>
+      <div class="table-scroll"><table class="data-table" id="table-yearly"></table></div>
+    </details>
+  </section>
+
+  <footer>
+    <p>Data: <a href="https://earthquake.usgs.gov/fdsnws/event/1/">USGS Earthquake Catalog (ComCat)</a>, box 24&ndash;37&deg;N, 70&ndash;98&deg;E, magnitude 4+. Page data generated <span id="generated">&ndash;</span>.</p>
+    <p>This describes the catalog. It does not predict earthquakes. Magnitudes mix several scales, and the catalog's completeness changes over time.</p>
+  </footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
